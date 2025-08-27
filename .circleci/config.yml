@@ -28,20 +28,22 @@ commands:
         type: string
     steps:
       - checkout
-      - run:
-          name: "Run << parameters.suite >> tests"
-          command: |
-            SUITE="<< parameters.suite >>"
-            echo "Running $SUITE tests..."
-            mkdir -p test-results/$SUITE artifacts
-            cat > test-results/$SUITE/junit.xml <<EOF
-            <testsuite name="$SUITE" tests="2" failures="0">
-              <testcase classname="sample" name="test_case_1"/>
-              <testcase classname="sample" name="test_case_2"/>
-            </testsuite>
-            EOF
-            echo "$SUITE test artifact" > artifacts/$SUITE-report.txt
-            echo "Done."
+- run:
+    name: "Run << parameters.suite >> tests"
+    command: |
+      SUITE="<< parameters.suite >>"
+      echo "Running $SUITE tests..."
+      mkdir -p test-results/$SUITE artifacts
+      # Create a tiny JUnit file so CircleCI shows the Tests tab.
+      cat > test-results/$SUITE/junit.xml <<EOF
+      <testsuite name="$SUITE" tests="2" failures="0">
+        <testcase classname="sample" name="test_case_1"/>
+        <testcase classname="sample" name="test_case_2"/>
+      </testsuite>
+      EOF
+      # Create a simple artifact file
+      echo "$SUITE test artifact" > artifacts/$SUITE-report.txt
+      echo "Done."
       - store_test_results:
           path: test-results
       - store_artifacts:
