@@ -1,7 +1,7 @@
 version: 2.1
 
+# Pipeline parameters
 parameters:
-  # Choose which workflow to run when triggering a pipeline
   run_all:
     type: boolean
     default: true
@@ -21,39 +21,65 @@ parameters:
     type: boolean
     default: false
 
+# Reusable commands
 commands:
   simulate_and_publish:
+    description: "Simulate test execution and publish results"
     parameters:
       suite:
         type: string
+        description: "Test suite name"
     steps:
       - checkout
       - run:
           name: "Run << parameters.suite >> tests"
           command: |
             SUITE="<< parameters.suite >>"
+            echo "===================================="
             echo "Running $SUITE tests..."
-            mkdir -p test-results/$SUITE artifacts
-            # Create a tiny JUnit file so CircleCI shows the Tests tab.
-            cat > test-results/$SUITE/junit.xml <<EOF
-            <testsuite name="$SUITE" tests="2" failures="0">
-              <testcase classname="sample" name="test_case_1"/>
-              <testcase classname="sample" name="test_case_2"/>
+            echo "===================================="
+            
+            # Create directories
+            mkdir -p test-results/$SUITE
+            mkdir -p artifacts
+            
+            # Simulate test execution time
+            echo "Setting up test environment for $SUITE..."
+            sleep 2
+            
+            echo "Executing $SUITE test cases..."
+            sleep 3
+            
+            # Create JUnit XML file using escaped heredoc
+            cat > test-results/$SUITE/junit.xml \<<EOF
+            <?xml version="1.0" encoding="UTF-8"?>
+            <testsuite name="$SUITE" tests="2" failures="0" errors="0" time="5.0">
+              <testcase classname="$SUITE.TestSuite" name="test_case_1" time="2.5"/>
+              <testcase classname="$SUITE.TestSuite" name="test_case_2" time="2.5"/>
             </testsuite>
             EOF
-            # Create a simple artifact file
-            echo "$SUITE test artifact" > artifacts/$SUITE-report.txt
-            echo "Done."
+            
+            # Create artifact file
+            echo "$SUITE test execution completed successfully" > artifacts/$SUITE-report.txt
+            echo "Test suite: $SUITE" >> artifacts/$SUITE-report.txt
+            echo "Execution time: $(date)" >> artifacts/$SUITE-report.txt
+            echo "Status: PASSED" >> artifacts/$SUITE-report.txt
+            
+            echo "===================================="
+            echo "$SUITE tests completed successfully!"
+            echo "===================================="
       - store_test_results:
           path: test-results
       - store_artifacts:
           path: artifacts
-          destination: artifacts
+          destination: test-reports
 
+# Job definitions
 jobs:
   smoke-tests:
     docker:
       - image: cimg/base:stable
+    resource_class: small
     steps:
       - simulate_and_publish:
           suite: "smoke"
@@ -61,6 +87,7 @@ jobs:
   sanity-tests:
     docker:
       - image: cimg/base:stable
+    resource_class: small
     steps:
       - simulate_and_publish:
           suite: "sanity"
@@ -68,6 +95,7 @@ jobs:
   regression-tests:
     docker:
       - image: cimg/base:stable
+    resource_class: medium
     steps:
       - simulate_and_publish:
           suite: "regression"
@@ -75,6 +103,7 @@ jobs:
   ui-tests:
     docker:
       - image: cimg/base:stable
+    resource_class: medium
     steps:
       - simulate_and_publish:
           suite: "ui"
@@ -82,24 +111,29 @@ jobs:
   api-tests:
     docker:
       - image: cimg/base:stable
+    resource_class: small
     steps:
       - simulate_and_publish:
           suite: "api"
 
+# Workflow definitions
 workflows:
-  # Full suite workflow (with a dependency to show ordering)
+  version: 2
+  
+  # Full test suite workflow
   all-suites:
     when: << pipeline.parameters.run_all >>
     jobs:
       - smoke-tests
       - sanity-tests
+      - api-tests
+      - ui-tests
       - regression-tests:
           requires:
             - smoke-tests
-      - ui-tests
-      - api-tests
+            - sanity-tests
 
-  # Targeted workflows you can trigger via parameters
+  # Individual test suite workflows
   smoke-only:
     when: << pipeline.parameters.run_smoke_only >>
     jobs:
