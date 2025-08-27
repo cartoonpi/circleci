@@ -1,0 +1,121 @@
+version: 2.1
+
+parameters:
+  # Choose which workflow to run when triggering a pipeline
+  run_all:
+    type: boolean
+    default: true
+  run_smoke_only:
+    type: boolean
+    default: false
+  run_sanity_only:
+    type: boolean
+    default: false
+  run_regression_only:
+    type: boolean
+    default: false
+  run_ui_only:
+    type: boolean
+    default: false
+  run_api_only:
+    type: boolean
+    default: false
+
+commands:
+  # Reusable command to simulate tests and produce JUnit + artifact output
+  simulate_and_publish:
+    parameters:
+      suite:
+        type: string
+    steps:
+      - checkout
+      - run:
+          name: "Run << parameters.suite >> tests"
+          command: |
+            echo "Running << parameters.suite >> tests..."
+            mkdir -p test-results/<< parameters.suite >> artifacts
+            # Create a tiny JUnit file so CircleCI shows the Tests tab.
+            cat > test-results/<< parameters.suite >>/junit.xml <<'XML'
+            <testsuite name="suite" tests="2" failures="0">
+              <testcase classname="sample" name="test_case_1"/>
+              <testcase classname="sample" name="test_case_2"/>
+            </testsuite>
+            XML
+            # Create a simple artifact file so you can see the Artifacts tab.
+            echo "<< parameters.suite >> test artifact" > artifacts/<< parameters.suite >>-report.txt
+            echo "Done."
+      - store_test_results:
+          path: test-results
+      - store_artifacts:
+          path: artifacts
+          destination: artifacts
+
+jobs:
+  smoke-tests:
+    docker: [ { image: cimg/base:stable } ]
+    steps:
+      - simulate_and_publish:
+          suite: "smoke"
+
+  sanity-tests:
+    docker: [ { image: cimg/base:stable } ]
+    steps:
+      - simulate_and_publish:
+          suite: "sanity"
+
+  regression-tests:
+    docker: [ { image: cimg/base:stable } ]
+    steps:
+      - simulate_and_publish:
+          suite: "regression"
+
+  ui-tests:
+    docker: [ { image: cimg/base:stable } ]
+    steps:
+      - simulate_and_publish:
+          suite: "ui"
+
+  api-tests:
+    docker: [ { image: cimg/base:stable } ]
+    steps:
+      - simulate_and_publish:
+          suite: "api"
+
+workflows:
+  # Full suite workflow (with a dependency to show ordering)
+  all-suites:
+    when: << pipeline.parameters.run_all >>
+    jobs:
+      - smoke-tests
+      - sanity-tests
+      - regression-tests:
+          requires:
+            - smoke-tests
+      - ui-tests
+      - api-tests
+
+  # Targeted workflows you can trigger via parameters
+  smoke-only:
+    when: << pipeline.parameters.run_smoke_only >>
+    jobs:
+      - smoke-tests
+
+  sanity-only:
+    when: << pipeline.parameters.run_sanity_only >>
+    jobs:
+      - sanity-tests
+
+  regression-only:
+    when: << pipeline.parameters.run_regression_only >>
+    jobs:
+      - regression-tests
+
+  ui-only:
+    when: << pipeline.parameters.run_ui_only >>
+    jobs:
+      - ui-tests
+
+  api-only:
+    when: << pipeline.parameters.run_api_only >>
+    jobs:
+      - api-tests
