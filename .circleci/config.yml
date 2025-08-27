@@ -35,12 +35,12 @@ commands:
             echo "Running << parameters.suite >> tests..."
             mkdir -p test-results/<< parameters.suite >> artifacts
             # Create a tiny JUnit file so CircleCI shows the Tests tab.
-            cat > test-results/<< parameters.suite >>/junit.xml <<'XML'
+            cat > test-results/<< parameters.suite >>/junit.xml <<\EOF
             <testsuite name="suite" tests="2" failures="0">
               <testcase classname="sample" name="test_case_1"/>
               <testcase classname="sample" name="test_case_2"/>
             </testsuite>
-            XML
+            EOF
             # Create a simple artifact file so you can see the Artifacts tab.
             echo "<< parameters.suite >> test artifact" > artifacts/<< parameters.suite >>-report.txt
             echo "Done."
